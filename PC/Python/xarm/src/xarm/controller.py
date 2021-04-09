@@ -1,15 +1,14 @@
-from .servo import Servo
+from .servo import Servo 
 from .util import Util
 import time
 
-class Controller:
-    SIGNATURE = 0x55
-    CMD_SERVO_MOVE = 0x03
-    CMD_GET_BATTERY_VOLTAGE = 0x0f
-    CMD_SERVO_STOP = 0x14
-    CMD_GET_SERVO_POSITION  = 0x15
 
-    debug = False
+class Controller:
+    SIGNATURE               = 0x55
+    CMD_SERVO_MOVE          = 0x03
+    CMD_GET_BATTERY_VOLTAGE = 0x0f
+    CMD_SERVO_STOP          = 0x14
+    CMD_GET_SERVO_POSITION  = 0x15
 
     def __init__(self, com_port, debug=False):
         if com_port.startswith('COM'):
@@ -17,29 +16,22 @@ class Controller:
             self._device = serial.Serial(com_port, 9600, timeout = 1)
             self._is_serial = True
         elif com_port.startswith('USB'):
-            import pywinusb.hid as hid
-            devices = hid.HidDeviceFilter(vendor_id=0x0483, product_id=0x5750).get_devices()
-            if len(devices) == 0:
-                raise RuntimeError('No xArm device found.')
+            import hid
+            self._device = hid.device()
             serial_number = com_port.strip('USB')
             if serial_number:
-                for device in devices:
-                    if device.serial_number == serial_number:
-                        self._device = device
-                if not hasattr(self, '_device'):
-                    raise ValueError('Device not found.')
+                self._device.open(0x0483, 0x5750, serial_number)
             else:
-                self._device = devices[0]
+                self._device.open(0x0483, 0x5750)
+            self._device.set_nonblocking(1)
             if debug:
-                print('Serial number:', self._device.serial_number)
-            self._device.open()
-            full_usage_id = hid.get_full_usage_id(0x8c, 0x03) # page_id, usage_id
-            self._device.add_event_handler(full_usage_id, self.usb_event_handler)
+                print('Serial number:', self._device.get_serial_number_string())
             self._usb_recv_event = False
             self._is_serial = False
         else:
             raise ValueError('com_port parameter incorrect.')
         self.debug = debug
+        self._input_report = []
 
     def setPosition(self, servos, position=None, duration=1000, wait=False):
         data = bytearray([1, duration & 0xff, (duration & 0xff00) >> 8])
@@ -147,20 +139,18 @@ class Controller:
             self._device.write([self.SIGNATURE, self.SIGNATURE, len(data) + 2, cmd])
             if len(data) > 0:
                 self._device.write(data)
-        else:
-            if self._device.is_plugged():
-                report_data = bytearray(65)
-                report_data[0] = 0
-                report_data[1] = self.SIGNATURE
-                report_data[2] = self.SIGNATURE
-                report_data[3] = len(data) + 2
-                report_data[4] = cmd
-                if len(data):
-                    report_data[5:5 + len(data)] = data
-                self._usb_recv_event = False
-                self._device.send_output_report(report_data)
-            else:
-                raise RuntimeError('Lost device xArm connection.')
+        else:  # Is USB
+            report_data = [
+                0, 
+                self.SIGNATURE, 
+                self.SIGNATURE, 
+                len(data) + 2,
+                cmd
+            ]
+            if len(data):
+                report_data.extend(data)
+            self._usb_recv_event = False
+            self._device.write(report_data)
 
     def _recv(self, cmd):
         if self._is_serial:
@@ -179,10 +169,8 @@ class Controller:
                 return data
             else:
                 return None
-        else:
-            t_end = time.time() + 60
-            while time.time() < t_end and not self._usb_recv_event:
-                pass
+        else:  # Is USB
+            self._input_report = self._device.read(64, 50)
             if self._input_report[0] == self.SIGNATURE and self._input_report[1] == self.SIGNATURE and self._input_report[3] == cmd:
                 length = self._input_report[2]
                 data = self._input_report[4:4 + length]

@@ -1,2 +1,0 @@
-pywinusb
-pytest
