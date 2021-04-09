@@ -39,11 +39,27 @@ A more robust editor is VSCode (Visual Studio Code). It can be installed from ht
 ___
 ## Installing the xArmController module
 
-From the Windows Command Prompt or Terminal in VSCode, run the following command to unstall xArmController and its module dependency pywinusb. Just copy from here and paste to the terminal command line.
+### Virtual Environment
 
-`pip install "git+https://github.com/ccourson/xArmServoController.git#egg=master&subdirectory=PC/Python"`
+It is recommended to use a Python virtual environment.
+
+#### Windows
+
+```py
+> py -m venv env
+> source env/Scripts/activate
+```
+
+## Install xarm
+
+### Windows
+
+```py
+pip install xarm
+```
 
 ___
+
 ## Methods and examples
 
 ### Connecting to the xArm

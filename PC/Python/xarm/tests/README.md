@@ -19,5 +19,5 @@ It is recommended to use a Python virtual environment.
 
 ```py
 pip install -r requirements.txt
-pip install -i https://test.pypi.org/simple/ xarm==0.0.3
+pip install xarm
 ```
