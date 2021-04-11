@@ -4,7 +4,7 @@
 * [Description](#description)
 * [Software Dependencies](#software-dependencies)
 * [License](#license)
-* [Installation (Linux and MacOS)](#installation-(linux-and-macos))
+* [Installation (Linux, MacOS and Raspberry Pi)](#Installation-(Linux,-MacOS-and-Raspberry-Pi))
 * [Installation (Windows)](#installation-(windows))
 * [Methods and examples](#methods-and-examples)
     * [*class* Servo](#servo)
@@ -30,7 +30,7 @@ A [Python module](https://pypi.org/project/xarm/) for controlling the Lewan-Soul
 
 [MIT Open Source Initiative](https://opensource.org/licenses/MIT)
 
-## Installation (Linux and MacOS)
+## Installation (Linux, MacOS and Raspberry Pi)
 
     $ sudo apt-get install python-dev libusb-1.0-0-dev libudev-dev
     $ sudo pip install --upgrade setuptools
