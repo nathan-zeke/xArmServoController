@@ -9,7 +9,7 @@ Join the [LewanSoul-xArm Enthusiast group on Facebook](https://www.facebook.com/
 
 ## Table of Content
 
-* [TTL Serial Control](#ttlserialcontrol)
+* [TTL Serial Control](#ttl-serial-control)
 * [Arduino](https://github.com/ccourson/xArmServoController/tree/master/Arduino)
 * [Python (Linux/MacOS/Windows)](https://github.com/ccourson/xArmServoController/tree/master/Python)
 * [License](#license)
