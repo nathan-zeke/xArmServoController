@@ -1,8 +1,11 @@
-# /PC/Python/xArmController
+# xarm
 
 ## Table of Content
-* [Setting up a Python development environment](#setting-up-a-windows-python-development-environment)
-* [Installing the xArmController module](#installing-the-xArmController-module)
+* [Description](#description)
+* [Software Dependencies](#software-dependencies)
+* [License](#license)
+* [Installation (Linux and MacOS)](#installation-(linux-and-macos))
+* [Installation (Windows)](#installation-(windows))
 * [Methods and examples](#methods-and-examples)
     * [*class* Servo](#servo)
     * [*class* Controller](#controller)
@@ -13,52 +16,54 @@
 * [Things left To-Do](#to-do)
 
 ___
-## Setting up a Windows Python development environment
+## Description
 
-There are many options for setting up Python development environment in Windows. To get xArmController running you install the following:
+A [Python module](https://pypi.org/project/xarm/) for controlling the Lewan-Soul, Lobot, HiWonder xArm and LeArm. Works on Linux, MacOS and Windows.
 
-1. Python 3
-1. An editor or IDE
-1. xArmController module
+## Software Dependencies
 
-### How to install Python 3
+* [Python](http://python.org/)
+* [PIP](https://pypi.org/project/pip/)
+* [cython-hidapi](https://github.com/trezor/cython-hidapi)
 
-If you already have Python installed, ensure you are running version 3 or higher.
+## License
 
-1. Open a  web browser to https://www.python.org/
-1. Click on the "Download Python {version here}" button on the home page.
-1. After downloaded, run the installer and follow the prompts.
-1. When prompted, choose to "Add python.exe to Path".
+[MIT Open Source Initiative](https://opensource.org/licenses/MIT)
 
-### Installing an editor
+## Installation (Linux and MacOS)
 
-Python includes a very simple GUI editor called IDLE. This editor is adequate for the examples and demos in this library.
+    $ sudo apt-get install python-dev libusb-1.0-0-dev libudev-dev
+    $ sudo pip install --upgrade setuptools
+    $ sudo pip install hidapi
+    $ sudo pip install xarm
 
-A more robust editor is VSCode (Visual Studio Code). It can be installed from https://code.visualstudio.com/. There are a couple plugins that will be required to get the best experience from VSCode. VSCode will *automagically* prompt you for these plugins when it detects you are working with Python.
+To enable the xArm/LeArm USB interface it is necessary to add udev rules.
 
-___
-## Installing the xArmController module
+* Debian Linux:
 
-### Virtual Environment
+        $ sudo nano /usr/lib/udev/rules.d/99-xarm.rules
 
-It is recommended to use a Python virtual environment.
+* Raspbian (RPi) Linux:
 
-#### Windows
+        $ sudo nano /etc/udev/rules.d/99-xarm.rules
 
-```py
-> py -m venv env
-> source env/Scripts/activate
-```
+Copy this line into the file and then save and exit:
 
-## Install xarm
+    SUBSYSTEM=="usb", ATTR{idVendor}=="0483", ATTR{idProduct}=="5750", MODE="0660", GROUP="plugdev"
 
-### Windows
+If after adding the udev rules you get an OSError using the open statement, perform one of the following:
 
-```py
-pip install xarm
-```
+1. Reload rules from terminal.
 
-___
+        $ sudo udevadm control --reload-rules && udevadm trigger
+
+1. Restart the comuter.
+
+## Installation (Windows)
+
+    > pip install --upgrade setuptools
+    > pip install hidapi
+    > pip install xarm
 
 ## Methods and examples
 
@@ -299,22 +304,3 @@ battery_voltage = arm.getBatteryVoltage()
 print('Battery voltage (volts):', battery_voltage)
 ```
 </dd></dl>
-
-___
-## To-Do
-
-* gripCalibrate - Gripper will slowly close and detect when it has reached the fully closed condition.
-* gripClose - Gripper will slowly close and stop when it has detected gripper is no longer closing.
-* gripOpen - Gripper will open to a specified with in centimeters.
-* gripMove - Gripper will move to a Euclidean coordinate while maintining its angle.
-
-### Built-in functions
-
-* groupRun
-* groupStop
-* groupErase
-* groupDownload
-* groupSpeed
-* offsetRead
-* offsetWrite
-* offsetAdjust
