@@ -11,7 +11,7 @@ class Controller:
     CMD_GET_SERVO_POSITION  = 0x15
     CMD_SERVO_ID_WRITE      = 0x1b
 
-    def __init__(self, com_port, debug=False):
+    def __init__(self, com_port, debug=False, usb_path=None):
         if com_port.startswith('COM'):
             import serial
             self._device = serial.Serial(com_port, 9600, timeout=1)
@@ -22,6 +22,8 @@ class Controller:
             serial_number = com_port.strip('USB')
             if serial_number:
                 self._device.open(0x0483, 0x5750, serial_number)
+            elif usb_path is not None:
+                self._device.open_path(bytes(usb_path, 'utf-8'))
             else:
                 self._device.open(0x0483, 0x5750)
             self._device.set_nonblocking(1)
@@ -156,14 +158,25 @@ class Controller:
         if self.debug:
             print(f"Found {len(self.servos)} Servos: {self.servos}")
 
+        return self.servos
+
     def getBatteryVoltage(self):
-        self._send(self.CMD_GET_BATTERY_VOLTAGE)
-        
-        data = self._recv(self.CMD_GET_BATTERY_VOLTAGE)
-        if data:
+        tries = 0
+
+        # it sometimes takes a second or two for the xArm to respond immediately after connecting
+        while tries < 5:
+            self._send(self.CMD_GET_BATTERY_VOLTAGE)
+
+            data = self._recv(self.CMD_GET_BATTERY_VOLTAGE)
+            if not data:
+                tries += 1
+                time.sleep(1)
+                continue
+
             return (data[1] * 256 + data[0]) / 1000.0
-        else:
-            return 0.0
+
+        # we tried for 5 seconds to no avail
+        return 0.0
 
     def _send(self, cmd, data=None):
         if data is None:
