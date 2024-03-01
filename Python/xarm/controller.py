@@ -9,11 +9,12 @@ class Controller:
     CMD_GET_BATTERY_VOLTAGE = 0x0f
     CMD_SERVO_STOP          = 0x14
     CMD_GET_SERVO_POSITION  = 0x15
+    CMD_SERVO_ID_WRITE      = 0x1b
 
     def __init__(self, com_port, debug=False):
         if com_port.startswith('COM'):
             import serial
-            self._device = serial.Serial(com_port, 9600, timeout = 1)
+            self._device = serial.Serial(com_port, 9600, timeout=1)
             self._is_serial = True
         elif com_port.startswith('USB'):
             import hid
@@ -32,6 +33,7 @@ class Controller:
             raise ValueError('com_port parameter incorrect.')
         self.debug = debug
         self._input_report = []
+        self.servos = []
 
     def setPosition(self, servos, position=None, duration=1000, wait=False):
         data = bytearray([1, duration & 0xff, (duration & 0xff00) >> 8])
@@ -114,25 +116,60 @@ class Controller:
                     data.append(servo)
                 elif isinstance(servo, Servo):
                     data.append(servo.servo_id)
-        elif servos == None:
+        elif servos is None:
             data = [6, 1,2,3,4,5,6]
         else:
             raise ValueError('servos parameter incorrect.')
 
         self._send(self.CMD_SERVO_STOP, data)
 
+    # NOTE: the BusServoInfoWrite (0x1b) command passes the write command to *all* servos.
+    # if the desire is to update only one servo_id, you must physically connect only
+    # that servo. if you are doing a mass update of servos to the same id, then you
+    # can pass overwrite_all_servo_ids=True to state your intention
+    def writeServoId(self, new_servo_id=0, overwrite_all_servo_ids=False):
+        # listing servos is an expensive operation, so we only do it when needing to perform a sanity check
+        if not overwrite_all_servo_ids:
+            self.listServos()
+
+        if len(self.servos) == 0:
+            raise ValueError("No servos to update their id")
+
+        if len(self.servos) > 1 and not overwrite_all_servo_ids:
+            raise ValueError(
+                "More than one servo is connected. Pass overwrite_all_servo_ids=True to write the same servo_id to all connected servos, or connect only one servo physically at a time to update its id")
+
+        if new_servo_id == 0:
+            raise ValueError('new_servo_id must be non-zero', new_servo_id)
+
+        data = bytearray([new_servo_id])
+        self._send(self.CMD_SERVO_ID_WRITE, data)
+
+    def listServos(self, maximum_servo_id=6):
+        self.servos = []
+        for i in range(1, maximum_servo_id + 1):
+            try:
+                self.getPosition(i)
+                self.servos.append(i)
+            except:
+                pass
+        if self.debug:
+            print(f"Found {len(self.servos)} Servos: {self.servos}")
+
     def getBatteryVoltage(self):
         self._send(self.CMD_GET_BATTERY_VOLTAGE)
         
         data = self._recv(self.CMD_GET_BATTERY_VOLTAGE)
-        if data != None:
+        if data:
             return (data[1] * 256 + data[0]) / 1000.0
         else:
-            return None
+            return 0.0
 
-    def _send(self, cmd, data = []):
+    def _send(self, cmd, data=None):
+        if data is None:
+            data = []
         if self.debug:
-            print('Send Data (' + str(len(data)) + '): ' + ' '.join('{:02x}'.format(x) for x in data))
+            print(f'Tx Command {"0x{:02x}".format(cmd)} (Length ' + str(len(data)) + '): ' + ' '.join('0x{:02x}'.format(x) for x in data))
 
         if self._is_serial:
             self._device.flush()
@@ -157,30 +194,28 @@ class Controller:
             data = self._device.read(4)
 
             if self.debug:
-                print('Recv Data: ' + ' '.join('{:02x}'.format(x) for x in data), end=" ")
+                print(f'Rx Command {"0x{:02x}".format(cmd)} (Length ' + str(len(data)) + '): ' + ' '.join('0x{:02x}'.format(x) for x in data))
 
             if data[0] == self.SIGNATURE and data[1] == self.SIGNATURE and data[3] == cmd:
                 length = data[2]
                 data = self._device.read(length)
-
-                if self.debug:
-                    print(' '.join('{:02x}'.format(x) for x in data))
-            
                 return data
             else:
                 return None
         else:  # Is USB
             self._input_report = self._device.read(64, 50)
-            if self._input_report[0] == self.SIGNATURE and self._input_report[1] == self.SIGNATURE and self._input_report[3] == cmd:
+            if len(self._input_report) < 4:
+                # the minimum frame size is 4 (SIGNATURE, SIGNATURE, LENGTH, CMD)
+                if self.debug:
+                    print(f'Did not receive a response for the command {"0x{:02x}".format(cmd)}')
+                return None
+            if self._input_report[0] == self.SIGNATURE and \
+                    self._input_report[1] == self.SIGNATURE and \
+                    self._input_report[3] == cmd:
                 length = self._input_report[2]
                 data = self._input_report[4:4 + length]
                 if self.debug:
-                    print('Recv Data: ' + ' '.join('{:02x}'.format(x) for x in data))
+                    print(f'Rx Command {"0x{:02x}".format(cmd)} (Length ' + str(len(data)) + '): ' + ' '.join(
+                        '0x{:02x}'.format(x) for x in data))
                 return data
             return None
-
-    def usb_event_handler(self, data, event_type):
-        self._input_report = data
-        self._usb_recv_event = True
-        if self.debug:
-            print('USB Recv Data: ' + ' '.join('{:02x}'.format(x) for x in data))
